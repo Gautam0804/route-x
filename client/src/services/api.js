@@ -1,645 +1,479 @@
+import axios from "axios";
+
+// ======================================================
+// API CONFIGURATION
+// ======================================================
+
 const API_URL =
     import.meta.env.VITE_API_URL ||
     "http://localhost:5000/api";
 
+const api = axios.create({
+    baseURL: API_URL,
+    headers: {
+        "Content-Type": "application/json",
+    },
+});
 
-// ==========================================
-// GET AUTH TOKEN
-// ==========================================
+// ======================================================
+// AUTH TOKEN
+// ======================================================
 
-function getToken() {
-    return (
-        localStorage.getItem("routex_token") ||
-        localStorage.getItem("token")
-    );
-}
+api.interceptors.request.use(
+    (config) => {
+        const token =
+            localStorage.getItem("routex_token") ||
+            localStorage.getItem("token");
 
-
-// ==========================================
-// API REQUEST
-// ==========================================
-
-async function apiRequest(endpoint, options = {}) {
-
-    const token = getToken();
-
-    const response = await fetch(
-        `${API_URL}${endpoint}`,
-        {
-            ...options,
-
-            headers: {
-                "Content-Type": "application/json",
-
-                ...(token
-                    ? {
-                        Authorization: `Bearer ${token}`,
-                    }
-                    : {}),
-
-                ...(options.headers || {}),
-            },
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
         }
-    );
 
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
-    let data = {};
-
-    try {
-        data = await response.json();
-    } catch {
-        data = {};
-    }
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            data.message ||
-            `Request failed with status ${response.status}`
-        );
-
-    }
-
-
-    return data;
-}
-
-
-// ==========================================
+// ======================================================
 // AUTH
-// ==========================================
+// ======================================================
 
-export const login = async (
-    email,
-    password
-) => {
-
-    const response = await apiRequest(
-        "/auth/login",
-        {
-            method: "POST",
-
-            body: JSON.stringify({
-                email,
-                password,
-            }),
-        }
-    );
-
+export const login = async (email, password) => {
+    const response = await api.post("/auth/login", {
+        email,
+        password,
+    });
 
     const token =
-        response.token ||
         response.data?.token ||
-        response.data?.accessToken ||
-        response.accessToken;
-
+        response.data?.data?.token;
 
     if (token) {
-
-        localStorage.setItem(
-            "routex_token",
-            token
-        );
-
+        localStorage.setItem("routex_token", token);
     }
 
-
-    return response;
+    return response.data;
 };
 
+export const getMe = async () => {
+    const response = await api.get("/auth/me");
 
-export const getMe = () => {
-    return apiRequest("/auth/me");
+    return response.data;
 };
-
 
 export const logout = () => {
-
-    localStorage.removeItem(
-        "routex_token"
-    );
-
-    localStorage.removeItem(
-        "token"
-    );
-
+    localStorage.removeItem("routex_token");
+    localStorage.removeItem("token");
 };
 
+// ======================================================
+// CUSTOMERS
+// ======================================================
 
-// ==========================================
-// DASHBOARD
-// ==========================================
+export const getCustomers = async (params = {}) => {
+    const response = await api.get("/customers", {
+        params,
+    });
 
-export const getDashboardOverview = () => {
-    return apiRequest("/dashboard/overview");
+    return response.data;
 };
 
+export const getCustomerById = async (id) => {
+    const response = await api.get(`/customers/${id}`);
 
-export const getRecentShipments = () => {
-    return apiRequest(
-        "/dashboard/recent-shipments"
+    return response.data;
+};
+
+export const createCustomer = async (data) => {
+    const response = await api.post(
+        "/customers",
+        data
     );
+
+    return response.data;
 };
 
+export const updateCustomer = async (id, data) => {
+    const response = await api.put(
+        `/customers/${id}`,
+        data
+    );
 
-// ==========================================
+    return response.data;
+};
+
+export const deleteCustomer = async (id) => {
+    const response = await api.delete(
+        `/customers/${id}`
+    );
+
+    return response.data;
+};
+
+// ======================================================
 // SHIPMENTS
-// ==========================================
+// ======================================================
 
-export const getShipments = (
-    params = ""
-) => {
-    return apiRequest(
-        `/shipments${params}`
-    );
+export const getShipments = async (params = {}) => {
+    const response = await api.get("/shipments", {
+        params,
+    });
+
+    return response.data;
 };
 
-
-export const getShipmentById = (id) => {
-    return apiRequest(
+export const getShipmentById = async (id) => {
+    const response = await api.get(
         `/shipments/${id}`
     );
+
+    return response.data;
 };
 
-
-export const createShipment = (
-    shipment
-) => {
-
-    return apiRequest(
+export const createShipment = async (data) => {
+    const response = await api.post(
         "/shipments",
-        {
-            method: "POST",
-
-            body: JSON.stringify(
-                shipment
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateShipment = (
-    id,
-    shipment
-) => {
-
-    return apiRequest(
+export const updateShipment = async (id, data) => {
+    const response = await api.put(
         `/shipments/${id}`,
-        {
-            method: "PUT",
-
-            body: JSON.stringify(
-                shipment
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const deleteShipment = (id) => {
-
-    return apiRequest(
-        `/shipments/${id}`,
-        {
-            method: "DELETE",
-        }
+export const deleteShipment = async (id) => {
+    const response = await api.delete(
+        `/shipments/${id}`
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // VEHICLES
-// ==========================================
+// ======================================================
 
-export const getVehicles = (
-    params = ""
-) => {
+export const getVehicles = async (params = {}) => {
+    const response = await api.get("/vehicles", {
+        params,
+    });
 
-    return apiRequest(
-        `/vehicles${params}`
-    );
-
+    return response.data;
 };
 
-
-export const getVehicleById = (id) => {
-
-    return apiRequest(
+export const getVehicleById = async (id) => {
+    const response = await api.get(
         `/vehicles/${id}`
     );
 
+    return response.data;
 };
 
-
-export const createVehicle = (
-    vehicle
-) => {
-
-    return apiRequest(
+export const createVehicle = async (data) => {
+    const response = await api.post(
         "/vehicles",
-        {
-            method: "POST",
-
-            body: JSON.stringify(
-                vehicle
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateVehicle = (
-    id,
-    vehicle
-) => {
-
-    return apiRequest(
+export const updateVehicle = async (id, data) => {
+    const response = await api.put(
         `/vehicles/${id}`,
-        {
-            method: "PUT",
-
-            body: JSON.stringify(
-                vehicle
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const deleteVehicle = (id) => {
-
-    return apiRequest(
-        `/vehicles/${id}`,
-        {
-            method: "DELETE",
-        }
+export const deleteVehicle = async (id) => {
+    const response = await api.delete(
+        `/vehicles/${id}`
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // DRIVERS
-// ==========================================
+// ======================================================
 
-export const getDrivers = (
-    params = ""
-) => {
+export const getDrivers = async (params = {}) => {
+    const response = await api.get("/drivers", {
+        params,
+    });
 
-    return apiRequest(
-        `/drivers${params}`
-    );
-
+    return response.data;
 };
 
-
-export const getDriverById = (
-    id
-) => {
-
-    return apiRequest(
+export const getDriver = async (id) => {
+    const response = await api.get(
         `/drivers/${id}`
     );
 
+    return response.data;
 };
 
+export const getDriverById = async (id) => {
+    const response = await api.get(
+        `/drivers/${id}`
+    );
 
-export const createDriver = (
-    driver
-) => {
+    return response.data;
+};
 
-    return apiRequest(
+export const createDriver = async (data) => {
+    const response = await api.post(
         "/drivers",
-        {
-            method: "POST",
-
-            body: JSON.stringify(
-                driver
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateDriver = (
-    id,
-    driver
-) => {
-
-    return apiRequest(
+export const updateDriver = async (id, data) => {
+    const response = await api.put(
         `/drivers/${id}`,
-        {
-            method: "PUT",
-
-            body: JSON.stringify(
-                driver
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateDriverStatus = (
+export const updateDriverStatus = async (
     id,
     status
 ) => {
-
-    return apiRequest(
+    const response = await api.patch(
         `/drivers/${id}/status`,
         {
-            method: "PATCH",
-
-            body: JSON.stringify({
-                status,
-            }),
+            status,
         }
     );
 
+    return response.data;
 };
 
-
-export const deleteDriver = (
-    id
-) => {
-
-    return apiRequest(
-        `/drivers/${id}`,
-        {
-            method: "DELETE",
-        }
+export const deleteDriver = async (id) => {
+    const response = await api.delete(
+        `/drivers/${id}`
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // ASSIGNMENTS
-// ==========================================
+// ======================================================
 
-export const getAssignments = (
-    params = ""
-) => {
+export const getAssignments = async (params = {}) => {
+    const response = await api.get("/assignments", {
+        params,
+    });
 
-    return apiRequest(
-        `/assignments${params}`
-    );
-
+    return response.data;
 };
 
-
-export const getAssignmentById = (
-    id
-) => {
-
-    return apiRequest(
+export const getAssignmentById = async (id) => {
+    const response = await api.get(
         `/assignments/${id}`
     );
 
+    return response.data;
 };
 
-
-export const createAssignment = (
-    data
-) => {
-
-    return apiRequest(
+export const createAssignment = async (data) => {
+    const response = await api.post(
         "/assignments",
         {
-            method: "POST",
-
-            body: JSON.stringify(
-                data
-            ),
+            shipmentId: Number(data.shipmentId),
+            vehicleId: Number(data.vehicleId),
+            driverId: Number(data.driverId),
         }
     );
 
+    return response.data;
 };
 
-
-export const updateAssignmentStatus = (
+export const updateAssignmentStatus = async (
     id,
     status
 ) => {
-
-    return apiRequest(
+    const response = await api.patch(
         `/assignments/${id}/status`,
         {
-            method: "PATCH",
-
-            body: JSON.stringify({
-                status,
-            }),
+            status,
         }
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // ALERTS
-// ==========================================
+// ======================================================
 
-export const getAlerts = (
-    params = ""
-) => {
+export const getAlerts = async (params = {}) => {
+    const response = await api.get("/alerts", {
+        params,
+    });
 
-    return apiRequest(
-        `/alerts${params}`
-    );
-
+    return response.data;
 };
 
-
-export const updateAlertStatus = (
+export const updateAlertStatus = async (
     id,
     status
 ) => {
-
-    return apiRequest(
+    const response = await api.patch(
         `/alerts/${id}/status`,
         {
-            method: "PATCH",
-
-            body: JSON.stringify({
-                status,
-            }),
+            status,
         }
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // TRACKING
-// ==========================================
+// ======================================================
 
-export const getTracking = (
-    assignmentId
-) => {
-
-    return apiRequest(
+export const getTracking = async (assignmentId) => {
+    const response = await api.get(
         `/tracking/assignment/${assignmentId}`
     );
 
+    return response.data;
 };
 
-
-export const getLatestTracking = (
+export const getLatestTracking = async (
     assignmentId
 ) => {
-
-    return apiRequest(
+    const response = await api.get(
         `/tracking/assignment/${assignmentId}/latest`
     );
 
+    return response.data;
 };
 
-
-export const getLiveTracking = () => {
-
-    return apiRequest(
+export const getLiveTracking = async () => {
+    const response = await api.get(
         "/tracking/live"
     );
 
+    return response.data;
 };
 
-
-export const getShipmentTracking = (
+export const getShipmentTracking = async (
     trackingNumber
 ) => {
-
-    return apiRequest(
+    const response = await api.get(
         `/tracking/shipment/${trackingNumber}`
     );
 
+    return response.data;
 };
 
-
-export const createTracking = (
-    data
-) => {
-
-    return apiRequest(
+export const createTracking = async (data) => {
+    const response = await api.post(
         "/tracking",
-        {
-            method: "POST",
-
-            body: JSON.stringify(
-                data
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
+// ======================================================
+// DASHBOARD
+// ======================================================
 
-// ==========================================
+export const getDashboardOverview = async () => {
+    const response = await api.get(
+        "/dashboard/overview"
+    );
+
+    return response.data;
+};
+
+export const getRecentShipments = async () => {
+    const response = await api.get(
+        "/dashboard/recent-shipments"
+    );
+
+    return response.data;
+};
+
+// ======================================================
 // USERS
-// ==========================================
+// ======================================================
 
-export const getUsers = (
-    params = ""
-) => {
+export const getUsers = async (params = {}) => {
+    const response = await api.get("/users", {
+        params,
+    });
 
-    return apiRequest(
-        `/users${params}`
-    );
-
+    return response.data;
 };
 
-
-export const getUserById = (
-    id
-) => {
-
-    return apiRequest(
+export const getUserById = async (id) => {
+    const response = await api.get(
         `/users/${id}`
     );
 
+    return response.data;
 };
 
-
-export const createUser = (
-    user
-) => {
-
-    return apiRequest(
+export const createUser = async (data) => {
+    const response = await api.post(
         "/users",
-        {
-            method: "POST",
-
-            body: JSON.stringify(
-                user
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateUser = (
-    id,
-    user
-) => {
-
-    return apiRequest(
+export const updateUser = async (id, data) => {
+    const response = await api.put(
         `/users/${id}`,
-        {
-            method: "PUT",
-
-            body: JSON.stringify(
-                user
-            ),
-        }
+        data
     );
 
+    return response.data;
 };
 
-
-export const updateUserStatus = (
+export const updateUserStatus = async (
     id,
     status
 ) => {
-
-    return apiRequest(
+    const response = await api.patch(
         `/users/${id}/status`,
         {
-            method: "PATCH",
-
-            body: JSON.stringify({
-                status,
-            }),
+            status,
         }
     );
 
+    return response.data;
 };
 
-
-export const deleteUser = (
-    id
-) => {
-
-    return apiRequest(
-        `/users/${id}`,
-        {
-            method: "DELETE",
-        }
+export const deleteUser = async (id) => {
+    const response = await api.delete(
+        `/users/${id}`
     );
 
+    return response.data;
 };
 
-
-// ==========================================
+// ======================================================
 // DEFAULT EXPORT
-// ==========================================
+// ======================================================
 
-export default apiRequest;
+export default api;
