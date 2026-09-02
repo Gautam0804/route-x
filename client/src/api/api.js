@@ -4,15 +4,20 @@ import axios from "axios";
 // API CONFIGURATION
 // ======================================================
 
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+    throw new Error(
+        "VITE_API_URL is not configured"
+    );
+}
 
 const api = axios.create({
     baseURL: API_URL,
     headers: {
         "Content-Type": "application/json",
     },
+    withCredentials: true,
 });
 
 // ======================================================
@@ -26,7 +31,8 @@ api.interceptors.request.use(
             localStorage.getItem("token");
 
         if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+            config.headers.Authorization =
+                `Bearer ${token}`;
         }
 
         return config;
@@ -38,18 +44,27 @@ api.interceptors.request.use(
 // AUTH
 // ======================================================
 
-export const login = async (email, password) => {
-    const response = await api.post("/auth/login", {
-        email,
-        password,
-    });
+export const login = async (
+    email,
+    password
+) => {
+    const response = await api.post(
+        "/auth/login",
+        {
+            email,
+            password,
+        }
+    );
 
     const token =
         response.data?.token ||
         response.data?.data?.token;
 
     if (token) {
-        localStorage.setItem("routex_token", token);
+        localStorage.setItem(
+            "routex_token",
+            token
+        );
     }
 
     return response.data;
@@ -65,27 +80,38 @@ export const getMe = async () => {
 // CUSTOMERS
 // ======================================================
 
-export const getCustomers = async (params = {}) => {
-    const response = await api.get("/customers", {
-        params,
-    });
+export const getCustomers = async (
+    params = {}
+) => {
+    const response = await api.get(
+        "/customers",
+        { params }
+    );
 
     return response.data;
 };
 
 export const getCustomerById = async (id) => {
-    const response = await api.get(`/customers/${id}`);
+    const response = await api.get(
+        `/customers/${id}`
+    );
 
     return response.data;
 };
 
 export const createCustomer = async (data) => {
-    const response = await api.post("/customers", data);
+    const response = await api.post(
+        "/customers",
+        data
+    );
 
     return response.data;
 };
 
-export const updateCustomer = async (id, data) => {
+export const updateCustomer = async (
+    id,
+    data
+) => {
     const response = await api.put(
         `/customers/${id}`,
         data
@@ -95,7 +121,9 @@ export const updateCustomer = async (id, data) => {
 };
 
 export const deleteCustomer = async (id) => {
-    const response = await api.delete(`/customers/${id}`);
+    const response = await api.delete(
+        `/customers/${id}`
+    );
 
     return response.data;
 };
@@ -104,27 +132,38 @@ export const deleteCustomer = async (id) => {
 // SHIPMENTS
 // ======================================================
 
-export const getShipments = async (params = {}) => {
-    const response = await api.get("/shipments", {
-        params,
-    });
+export const getShipments = async (
+    params = {}
+) => {
+    const response = await api.get(
+        "/shipments",
+        { params }
+    );
 
     return response.data;
 };
 
 export const getShipmentById = async (id) => {
-    const response = await api.get(`/shipments/${id}`);
+    const response = await api.get(
+        `/shipments/${id}`
+    );
 
     return response.data;
 };
 
 export const createShipment = async (data) => {
-    const response = await api.post("/shipments", data);
+    const response = await api.post(
+        "/shipments",
+        data
+    );
 
     return response.data;
 };
 
-export const updateShipment = async (id, data) => {
+export const updateShipment = async (
+    id,
+    data
+) => {
     const response = await api.put(
         `/shipments/${id}`,
         data
@@ -134,7 +173,9 @@ export const updateShipment = async (id, data) => {
 };
 
 export const deleteShipment = async (id) => {
-    const response = await api.delete(`/shipments/${id}`);
+    const response = await api.delete(
+        `/shipments/${id}`
+    );
 
     return response.data;
 };
@@ -143,27 +184,38 @@ export const deleteShipment = async (id) => {
 // VEHICLES
 // ======================================================
 
-export const getVehicles = async (params = {}) => {
-    const response = await api.get("/vehicles", {
-        params,
-    });
+export const getVehicles = async (
+    params = {}
+) => {
+    const response = await api.get(
+        "/vehicles",
+        { params }
+    );
 
     return response.data;
 };
 
 export const getVehicleById = async (id) => {
-    const response = await api.get(`/vehicles/${id}`);
+    const response = await api.get(
+        `/vehicles/${id}`
+    );
 
     return response.data;
 };
 
 export const createVehicle = async (data) => {
-    const response = await api.post("/vehicles", data);
+    const response = await api.post(
+        "/vehicles",
+        data
+    );
 
     return response.data;
 };
 
-export const updateVehicle = async (id, data) => {
+export const updateVehicle = async (
+    id,
+    data
+) => {
     const response = await api.put(
         `/vehicles/${id}`,
         data
@@ -173,7 +225,9 @@ export const updateVehicle = async (id, data) => {
 };
 
 export const deleteVehicle = async (id) => {
-    const response = await api.delete(`/vehicles/${id}`);
+    const response = await api.delete(
+        `/vehicles/${id}`
+    );
 
     return response.data;
 };
@@ -182,33 +236,46 @@ export const deleteVehicle = async (id) => {
 // DRIVERS
 // ======================================================
 
-export const getDrivers = async (params = {}) => {
-    const response = await api.get("/drivers", {
-        params,
-    });
+export const getDrivers = async (
+    params = {}
+) => {
+    const response = await api.get(
+        "/drivers",
+        { params }
+    );
 
     return response.data;
 };
 
 export const getDriver = async (id) => {
-    const response = await api.get(`/drivers/${id}`);
+    const response = await api.get(
+        `/drivers/${id}`
+    );
 
     return response.data;
 };
 
 export const getDriverById = async (id) => {
-    const response = await api.get(`/drivers/${id}`);
+    const response = await api.get(
+        `/drivers/${id}`
+    );
 
     return response.data;
 };
 
 export const createDriver = async (data) => {
-    const response = await api.post("/drivers", data);
+    const response = await api.post(
+        "/drivers",
+        data
+    );
 
     return response.data;
 };
 
-export const updateDriver = async (id, data) => {
+export const updateDriver = async (
+    id,
+    data
+) => {
     const response = await api.put(
         `/drivers/${id}`,
         data
@@ -218,7 +285,9 @@ export const updateDriver = async (id, data) => {
 };
 
 export const deleteDriver = async (id) => {
-    const response = await api.delete(`/drivers/${id}`);
+    const response = await api.delete(
+        `/drivers/${id}`
+    );
 
     return response.data;
 };
@@ -227,15 +296,20 @@ export const deleteDriver = async (id) => {
 // ASSIGNMENTS
 // ======================================================
 
-export const getAssignments = async (params = {}) => {
-    const response = await api.get("/assignments", {
-        params,
-    });
+export const getAssignments = async (
+    params = {}
+) => {
+    const response = await api.get(
+        "/assignments",
+        { params }
+    );
 
     return response.data;
 };
 
-export const getAssignmentById = async (id) => {
+export const getAssignmentById = async (
+    id
+) => {
     const response = await api.get(
         `/assignments/${id}`
     );
@@ -243,61 +317,69 @@ export const getAssignmentById = async (id) => {
     return response.data;
 };
 
-export const createAssignment = async (data) => {
-    const response = await api.post("/assignments", {
-        shipmentId: Number(data.shipmentId),
-        vehicleId: Number(data.vehicleId),
-        driverId: Number(data.driverId),
-    });
-
-    return response.data;
-};
-
-export const updateAssignmentStatus = async (
-    id,
-    status
+export const createAssignment = async (
+    data
 ) => {
-    const response = await api.patch(
-        `/assignments/${id}/status`,
+    const response = await api.post(
+        "/assignments",
         {
-            status,
+            shipmentId: Number(
+                data.shipmentId
+            ),
+            vehicleId: Number(
+                data.vehicleId
+            ),
+            driverId: Number(
+                data.driverId
+            ),
         }
     );
 
     return response.data;
 };
+
+export const updateAssignmentStatus =
+    async (id, status) => {
+        const response = await api.patch(
+            `/assignments/${id}/status`,
+            { status }
+        );
+
+        return response.data;
+    };
 
 // ======================================================
 // ALERTS
 // ======================================================
 
-export const getAlerts = async (params = {}) => {
-    const response = await api.get("/alerts", {
-        params,
-    });
-
-    return response.data;
-};
-
-export const updateAlertStatus = async (
-    id,
-    status
+export const getAlerts = async (
+    params = {}
 ) => {
-    const response = await api.patch(
-        `/alerts/${id}/status`,
-        {
-            status,
-        }
+    const response = await api.get(
+        "/alerts",
+        { params }
     );
 
     return response.data;
 };
 
+export const updateAlertStatus =
+    async (id, status) => {
+        const response = await api.patch(
+            `/alerts/${id}/status`,
+            { status }
+        );
+
+        return response.data;
+    };
+
 // ======================================================
 // TRACKING
 // ======================================================
 
-export const getTracking = async (assignmentId) => {
+export const getTracking = async (
+    assignmentId
+) => {
     const response = await api.get(
         `/tracking/assignment/${assignmentId}`
     );
@@ -316,7 +398,9 @@ export const getLatestTracking = async (
 };
 
 export const getLiveTracking = async () => {
-    const response = await api.get("/tracking/live");
+    const response = await api.get(
+        "/tracking/live"
+    );
 
     return response.data;
 };
@@ -331,8 +415,13 @@ export const getShipmentTracking = async (
     return response.data;
 };
 
-export const createTracking = async (data) => {
-    const response = await api.post("/tracking", data);
+export const createTracking = async (
+    data
+) => {
+    const response = await api.post(
+        "/tracking",
+        data
+    );
 
     return response.data;
 };
@@ -341,21 +430,23 @@ export const createTracking = async (data) => {
 // DASHBOARD
 // ======================================================
 
-export const getDashboardOverview = async () => {
-    const response = await api.get(
-        "/dashboard/overview"
-    );
+export const getDashboardOverview =
+    async () => {
+        const response = await api.get(
+            "/dashboard/overview"
+        );
 
-    return response.data;
-};
+        return response.data;
+    };
 
-export const getRecentShipments = async () => {
-    const response = await api.get(
-        "/dashboard/recent-shipments"
-    );
+export const getRecentShipments =
+    async () => {
+        const response = await api.get(
+            "/dashboard/recent-shipments"
+        );
 
-    return response.data;
-};
+        return response.data;
+    };
 
 // ======================================================
 // DEFAULT EXPORT

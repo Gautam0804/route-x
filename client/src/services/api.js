@@ -1,29 +1,34 @@
 import axios from "axios";
 
-// ======================================================
+// =====================================================
 // API CONFIGURATION
-// ======================================================
+// =====================================================
 
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+    throw new Error("VITE_API_URL is not configured");
+}
+
+// =====================================================
+// AXIOS INSTANCE
+// =====================================================
 
 const api = axios.create({
     baseURL: API_URL,
     headers: {
         "Content-Type": "application/json",
     },
+    withCredentials: true,
 });
 
-// ======================================================
-// AUTH TOKEN
-// ======================================================
+// =====================================================
+// AUTH TOKEN INTERCEPTOR
+// =====================================================
 
 api.interceptors.request.use(
     (config) => {
-        const token =
-            localStorage.getItem("routex_token") ||
-            localStorage.getItem("token");
+        const token = localStorage.getItem("token");
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -31,44 +36,50 @@ api.interceptors.request.use(
 
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        return Promise.reject(error);
+    }
 );
 
-// ======================================================
-// AUTH
-// ======================================================
+// =====================================================
+// RESPONSE INTERCEPTOR
+// =====================================================
 
-export const login = async (email, password) => {
-    const response = await api.post("/auth/login", {
-        email,
-        password,
-    });
+api.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+        }
 
-    const token =
-        response.data?.token ||
-        response.data?.data?.token;
-
-    if (token) {
-        localStorage.setItem("routex_token", token);
+        return Promise.reject(error);
     }
+);
 
+// =====================================================
+// AUTH
+// =====================================================
+
+export const login = async (data) => {
+    const response = await api.post("/auth/login", data);
     return response.data;
 };
 
 export const getMe = async () => {
     const response = await api.get("/auth/me");
-
     return response.data;
 };
 
-export const logout = () => {
-    localStorage.removeItem("routex_token");
+export const logout = async () => {
     localStorage.removeItem("token");
+    return true;
 };
 
-// ======================================================
+// =====================================================
 // CUSTOMERS
-// ======================================================
+// =====================================================
 
 export const getCustomers = async (params = {}) => {
     const response = await api.get("/customers", {
@@ -80,16 +91,11 @@ export const getCustomers = async (params = {}) => {
 
 export const getCustomerById = async (id) => {
     const response = await api.get(`/customers/${id}`);
-
     return response.data;
 };
 
 export const createCustomer = async (data) => {
-    const response = await api.post(
-        "/customers",
-        data
-    );
-
+    const response = await api.post("/customers", data);
     return response.data;
 };
 
@@ -110,9 +116,9 @@ export const deleteCustomer = async (id) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // SHIPMENTS
-// ======================================================
+// =====================================================
 
 export const getShipments = async (params = {}) => {
     const response = await api.get("/shipments", {
@@ -156,9 +162,9 @@ export const deleteShipment = async (id) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // VEHICLES
-// ======================================================
+// =====================================================
 
 export const getVehicles = async (params = {}) => {
     const response = await api.get("/vehicles", {
@@ -202,9 +208,9 @@ export const deleteVehicle = async (id) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // DRIVERS
-// ======================================================
+// =====================================================
 
 export const getDrivers = async (params = {}) => {
     const response = await api.get("/drivers", {
@@ -270,14 +276,17 @@ export const deleteDriver = async (id) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // ASSIGNMENTS
-// ======================================================
+// =====================================================
 
 export const getAssignments = async (params = {}) => {
-    const response = await api.get("/assignments", {
-        params,
-    });
+    const response = await api.get(
+        "/assignments",
+        {
+            params,
+        }
+    );
 
     return response.data;
 };
@@ -293,11 +302,7 @@ export const getAssignmentById = async (id) => {
 export const createAssignment = async (data) => {
     const response = await api.post(
         "/assignments",
-        {
-            shipmentId: Number(data.shipmentId),
-            vehicleId: Number(data.vehicleId),
-            driverId: Number(data.driverId),
-        }
+        data
     );
 
     return response.data;
@@ -317,9 +322,9 @@ export const updateAssignmentStatus = async (
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // ALERTS
-// ======================================================
+// =====================================================
 
 export const getAlerts = async (params = {}) => {
     const response = await api.get("/alerts", {
@@ -343,23 +348,21 @@ export const updateAlertStatus = async (
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // TRACKING
-// ======================================================
+// =====================================================
 
-export const getTracking = async (assignmentId) => {
-    const response = await api.get(
-        `/tracking/assignment/${assignmentId}`
-    );
+export const getTracking = async (params = {}) => {
+    const response = await api.get("/tracking", {
+        params,
+    });
 
     return response.data;
 };
 
-export const getLatestTracking = async (
-    assignmentId
-) => {
+export const getLatestTracking = async (id) => {
     const response = await api.get(
-        `/tracking/assignment/${assignmentId}/latest`
+        `/tracking/latest/${id}`
     );
 
     return response.data;
@@ -373,11 +376,9 @@ export const getLiveTracking = async () => {
     return response.data;
 };
 
-export const getShipmentTracking = async (
-    trackingNumber
-) => {
+export const getShipmentTracking = async (id) => {
     const response = await api.get(
-        `/tracking/shipment/${trackingNumber}`
+        `/tracking/shipment/${id}`
     );
 
     return response.data;
@@ -392,9 +393,9 @@ export const createTracking = async (data) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // DASHBOARD
-// ======================================================
+// =====================================================
 
 export const getDashboardOverview = async () => {
     const response = await api.get(
@@ -404,17 +405,22 @@ export const getDashboardOverview = async () => {
     return response.data;
 };
 
-export const getRecentShipments = async () => {
+export const getRecentShipments = async (
+    params = {}
+) => {
     const response = await api.get(
-        "/dashboard/recent-shipments"
+        "/dashboard/recent-shipments",
+        {
+            params,
+        }
     );
 
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // USERS
-// ======================================================
+// =====================================================
 
 export const getUsers = async (params = {}) => {
     const response = await api.get("/users", {
@@ -472,8 +478,8 @@ export const deleteUser = async (id) => {
     return response.data;
 };
 
-// ======================================================
+// =====================================================
 // DEFAULT EXPORT
-// ======================================================
+// =====================================================
 
 export default api;
