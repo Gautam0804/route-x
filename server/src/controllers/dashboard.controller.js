@@ -1,5 +1,4 @@
-const { pool } = require("../config/database");
-
+const { pool } = require("../config/db");
 
 // =====================================================
 // GET DASHBOARD OVERVIEW
@@ -7,45 +6,111 @@ const { pool } = require("../config/database");
 // =====================================================
 
 const getOverview = async (req, res, next) => {
-
     try {
-
         // =================================================
         // SHIPMENT STATISTICS
         // =================================================
 
         const [shipmentStats] = await pool.execute(`
             SELECT
-
                 COUNT(*) AS total_shipments,
 
-                SUM(IF(s.status = 'pending', 1, 0))
+                SUM(IF(status = 'pending', 1, 0))
                     AS pending_shipments,
 
-                SUM(IF(s.status = 'assigned', 1, 0))
+                SUM(IF(status = 'assigned', 1, 0))
                     AS assigned_shipments,
 
-                SUM(IF(s.status = 'picked_up', 1, 0))
+                SUM(IF(status = 'picked_up', 1, 0))
                     AS picked_up_shipments,
 
-                SUM(IF(s.status = 'in_transit', 1, 0))
+                SUM(IF(status = 'in_transit', 1, 0))
                     AS in_transit_shipments,
 
-                SUM(IF(s.status = 'out_for_delivery', 1, 0))
+                SUM(IF(status = 'out_for_delivery', 1, 0))
                     AS out_for_delivery_shipments,
 
-                SUM(IF(s.status = 'delivered', 1, 0))
+                SUM(IF(status = 'delivered', 1, 0))
                     AS delivered_shipments,
 
-                SUM(IF(s.status = 'delayed', 1, 0))
+                SUM(IF(status = 'delayed', 1, 0))
                     AS delayed_shipments,
 
-                SUM(IF(s.status = 'cancelled', 1, 0))
-                    AS cancelled_shipments
+                SUM(IF(status = 'cancelled', 1, 0))
+                    AS cancelled_shipments,
 
-            FROM shipments s
+                SUM(
+                    IF(
+                        DATE(created_at) = CURDATE(),
+                        1,
+                        0
+                    )
+                ) AS today_shipments,
+
+                SUM(
+                    IF(
+                        YEARWEEK(created_at, 1)
+                        = YEARWEEK(CURDATE(), 1),
+                        1,
+                        0
+                    )
+                ) AS weekly_shipments,
+
+                ROUND(
+                    (
+                        SUM(IF(status = 'delivered', 1, 0))
+                        /
+                        NULLIF(
+                            COUNT(*)
+                            -
+                            SUM(IF(status = 'cancelled', 1, 0)),
+                            0
+                        )
+                    ) * 100,
+                    1
+                ) AS delivery_rate,
+
+                ROUND(
+                    (
+                        SUM(IF(status = 'delayed', 1, 0))
+                        /
+                        NULLIF(COUNT(*), 0)
+                    ) * 100,
+                    1
+                ) AS delayed_rate,
+
+                ROUND(
+                    AVG(
+                        IF(
+                            actual_delivery_at IS NOT NULL
+                            AND created_at IS NOT NULL,
+                            TIMESTAMPDIFF(
+                                HOUR,
+                                created_at,
+                                actual_delivery_at
+                            ),
+                            NULL
+                        )
+                    ),
+                    1
+                ) AS average_delivery_hours
+
+            FROM shipments
         `);
 
+        // =================================================
+        // LAST 7 DAYS SHIPMENT TREND
+        // =================================================
+
+        const [shipmentTrend] = await pool.execute(`
+            SELECT
+                DATE(created_at) AS date,
+                COUNT(*) AS shipments
+            FROM shipments
+            WHERE created_at >= CURDATE() - INTERVAL 6 DAY
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `);
 
         // =================================================
         // VEHICLE STATISTICS
@@ -53,24 +118,22 @@ const getOverview = async (req, res, next) => {
 
         const [vehicleStats] = await pool.execute(`
             SELECT
-
                 COUNT(*) AS total_vehicles,
 
-                SUM(IF(v.status = 'available', 1, 0))
+                SUM(IF(status = 'available', 1, 0))
                     AS available_vehicles,
 
-                SUM(IF(v.status = 'in_transit', 1, 0))
+                SUM(IF(status = 'in_transit', 1, 0))
                     AS in_transit_vehicles,
 
-                SUM(IF(v.status = 'maintenance', 1, 0))
+                SUM(IF(status = 'maintenance', 1, 0))
                     AS maintenance_vehicles,
 
-                SUM(IF(v.status = 'inactive', 1, 0))
+                SUM(IF(status = 'inactive', 1, 0))
                     AS inactive_vehicles
 
-            FROM vehicles v
+            FROM vehicles
         `);
-
 
         // =================================================
         // DRIVER STATISTICS
@@ -78,24 +141,43 @@ const getOverview = async (req, res, next) => {
 
         const [driverStats] = await pool.execute(`
             SELECT
-
                 COUNT(*) AS total_drivers,
 
-                SUM(IF(d.status = 'available', 1, 0))
+                SUM(IF(status = 'available', 1, 0))
                     AS available_drivers,
 
-                SUM(IF(d.status = 'on_trip', 1, 0))
+                SUM(IF(status = 'on_trip', 1, 0))
                     AS on_trip_drivers,
 
-                SUM(IF(d.status = 'off_duty', 1, 0))
+                SUM(IF(status = 'off_duty', 1, 0))
                     AS off_duty_drivers,
 
-                SUM(IF(d.status = 'inactive', 1, 0))
+                SUM(IF(status = 'inactive', 1, 0))
                     AS inactive_drivers
 
-            FROM drivers d
+            FROM drivers
         `);
 
+        // =================================================
+        // TOP DRIVER PERFORMANCE
+        // =================================================
+
+        const [topDrivers] = await pool.execute(`
+            SELECT
+                id,
+                employee_code,
+                first_name,
+                last_name,
+                rating,
+                total_deliveries,
+                status
+            FROM drivers
+            WHERE status != 'inactive'
+            ORDER BY
+                rating DESC,
+                total_deliveries DESC
+            LIMIT 5
+        `);
 
         // =================================================
         // ALERT STATISTICS
@@ -103,43 +185,42 @@ const getOverview = async (req, res, next) => {
 
         const [alertStats] = await pool.execute(`
             SELECT
-
                 COUNT(*) AS total_alerts,
 
-                SUM(IF(a.status = 'open', 1, 0))
+                SUM(IF(status = 'open', 1, 0))
                     AS open_alerts,
 
-                SUM(IF(a.status = 'acknowledged', 1, 0))
+                SUM(IF(status = 'acknowledged', 1, 0))
                     AS acknowledged_alerts,
 
-                SUM(IF(a.status = 'resolved', 1, 0))
+                SUM(IF(status = 'resolved', 1, 0))
                     AS resolved_alerts,
 
                 SUM(
                     IF(
-                        a.severity = 'critical'
-                        AND a.status != 'resolved',
+                        severity = 'critical'
+                        AND status != 'resolved',
                         1,
                         0
                     )
                 ) AS critical_alerts
 
-            FROM alerts a
+            FROM alerts
         `);
-
 
         // =================================================
         // RESPONSE
         // =================================================
 
         return res.status(200).json({
-
             success: true,
 
             data: {
+                // =================================================
+                // SHIPMENTS
+                // =================================================
 
                 shipments: {
-
                     total: Number(
                         shipmentStats[0].total_shipments || 0
                     ),
@@ -176,11 +257,39 @@ const getOverview = async (req, res, next) => {
                         shipmentStats[0].cancelled_shipments || 0
                     ),
 
+                    today: Number(
+                        shipmentStats[0].today_shipments || 0
+                    ),
+
+                    thisWeek: Number(
+                        shipmentStats[0].weekly_shipments || 0
+                    ),
+
+                    deliveryRate: Number(
+                        shipmentStats[0].delivery_rate || 0
+                    ),
+
+                    delayedRate: Number(
+                        shipmentStats[0].delayed_rate || 0
+                    ),
+
+                    averageDeliveryHours: Number(
+                        shipmentStats[0].average_delivery_hours || 0
+                    ),
+
+                    trend: shipmentTrend.map((item) => ({
+                        date: item.date,
+                        shipments: Number(
+                            item.shipments || 0
+                        ),
+                    })),
                 },
 
+                // =================================================
+                // VEHICLES
+                // =================================================
 
                 vehicles: {
-
                     total: Number(
                         vehicleStats[0].total_vehicles || 0
                     ),
@@ -200,12 +309,13 @@ const getOverview = async (req, res, next) => {
                     inactive: Number(
                         vehicleStats[0].inactive_vehicles || 0
                     ),
-
                 },
 
+                // =================================================
+                // DRIVERS
+                // =================================================
 
                 drivers: {
-
                     total: Number(
                         driverStats[0].total_drivers || 0
                     ),
@@ -226,11 +336,35 @@ const getOverview = async (req, res, next) => {
                         driverStats[0].inactive_drivers || 0
                     ),
 
+                    topDrivers: topDrivers.map((driver) => ({
+                        id: driver.id,
+
+                        employeeCode:
+                            driver.employee_code,
+
+                        firstName:
+                            driver.first_name,
+
+                        lastName:
+                            driver.last_name,
+
+                        rating: Number(
+                            driver.rating || 0
+                        ),
+
+                        totalDeliveries: Number(
+                            driver.total_deliveries || 0
+                        ),
+
+                        status: driver.status,
+                    })),
                 },
 
+                // =================================================
+                // ALERTS
+                // =================================================
 
                 alerts: {
-
                     total: Number(
                         alertStats[0].total_alerts || 0
                     ),
@@ -250,24 +384,17 @@ const getOverview = async (req, res, next) => {
                     critical: Number(
                         alertStats[0].critical_alerts || 0
                     ),
-
                 },
-
             },
-
         });
-
     } catch (error) {
-
         console.error(
             "Dashboard overview error:",
             error
         );
 
         next(error);
-
     }
-
 };
 
 
@@ -277,80 +404,36 @@ const getOverview = async (req, res, next) => {
 // =====================================================
 
 const getRecentShipments = async (req, res, next) => {
-
     try {
-
         const [shipments] = await pool.execute(`
             SELECT
-
-                s.id,
-
-                s.tracking_number,
-
-                s.origin_address,
-
-                s.origin_city,
-
-                s.destination_address,
-
-                s.destination_city,
-
-                s.package_description,
-
-                s.package_count,
-
-                s.weight_kg,
-
-                s.priority,
-
-                s.status,
-
-                s.estimated_delivery_at,
-
-                s.actual_delivery_at,
-
-                s.created_at,
-
-                s.updated_at,
-
-                c.customer_code,
-
-                c.company_name AS customer_name,
-
-                c.contact_person AS customer_contact
-
-            FROM shipments s
-
-            LEFT JOIN customers c
-                ON c.id = s.customer_id
-
-            ORDER BY s.created_at DESC
-
+                id,
+                tracking_number,
+                customer_id,
+                origin_city,
+                destination_city,
+                priority,
+                status,
+                created_at,
+                updated_at
+            FROM shipments
+            ORDER BY created_at DESC
             LIMIT 10
         `);
 
-
         return res.status(200).json({
-
             success: true,
-
             count: shipments.length,
-
             data: shipments,
-
         });
-
     } catch (error) {
-
         console.error(
             "Recent shipments error:",
             error
         );
 
         next(error);
-
     }
-
 };
 
 
@@ -360,54 +443,33 @@ const getRecentShipments = async (req, res, next) => {
 // =====================================================
 
 const getActiveAssignments = async (req, res, next) => {
-
     try {
-
         const [assignments] = await pool.execute(`
             SELECT
-
                 a.id AS assignment_id,
-
                 a.status AS assignment_status,
-
                 a.assigned_at,
-
                 a.started_at,
-
                 a.notes,
 
                 s.id AS shipment_id,
-
                 s.tracking_number,
-
                 s.origin_city,
-
                 s.destination_city,
-
                 s.priority AS shipment_priority,
-
                 s.status AS shipment_status,
 
                 d.id AS driver_id,
-
                 d.employee_code,
-
                 d.first_name AS driver_first_name,
-
                 d.last_name AS driver_last_name,
-
                 d.phone AS driver_phone,
-
                 d.rating AS driver_rating,
 
                 v.id AS vehicle_id,
-
                 v.vehicle_number,
-
                 v.registration_number,
-
                 v.vehicle_type,
-
                 v.status AS vehicle_status
 
             FROM assignments a
@@ -430,28 +492,19 @@ const getActiveAssignments = async (req, res, next) => {
             ORDER BY a.assigned_at DESC
         `);
 
-
         return res.status(200).json({
-
             success: true,
-
             count: assignments.length,
-
             data: assignments,
-
         });
-
     } catch (error) {
-
         console.error(
             "Active assignments error:",
             error
         );
 
         next(error);
-
     }
-
 };
 
 
@@ -461,36 +514,21 @@ const getActiveAssignments = async (req, res, next) => {
 // =====================================================
 
 const getRecentAlerts = async (req, res, next) => {
-
     try {
-
         const [alerts] = await pool.execute(`
             SELECT
-
                 a.id,
-
                 a.type,
-
                 a.severity,
-
                 a.title,
-
                 a.description,
-
                 a.shipment_id,
-
                 a.vehicle_id,
-
                 a.driver_id,
-
                 a.status,
-
                 a.resolved_by,
-
                 a.resolved_at,
-
                 a.created_at,
-
                 a.updated_at
 
             FROM alerts a
@@ -498,7 +536,6 @@ const getRecentAlerts = async (req, res, next) => {
             WHERE a.status != 'resolved'
 
             ORDER BY
-
                 CASE
                     WHEN a.severity = 'critical' THEN 1
                     WHEN a.severity = 'high' THEN 2
@@ -512,28 +549,19 @@ const getRecentAlerts = async (req, res, next) => {
             LIMIT 10
         `);
 
-
         return res.status(200).json({
-
             success: true,
-
             count: alerts.length,
-
             data: alerts,
-
         });
-
     } catch (error) {
-
         console.error(
             "Recent alerts error:",
             error
         );
 
         next(error);
-
     }
-
 };
 
 
@@ -543,16 +571,13 @@ const getRecentAlerts = async (req, res, next) => {
 // =====================================================
 
 const getSummary = async (req, res, next) => {
-
     try {
-
         // =================================================
         // TOTAL ASSIGNMENTS
         // =================================================
 
         const [assignmentStats] = await pool.execute(`
             SELECT
-
                 COUNT(*) AS total,
 
                 SUM(
@@ -578,7 +603,6 @@ const getSummary = async (req, res, next) => {
             FROM assignments
         `);
 
-
         // =================================================
         // TOTAL CUSTOMERS
         // =================================================
@@ -587,7 +611,6 @@ const getSummary = async (req, res, next) => {
             SELECT COUNT(*) AS total
             FROM customers
         `);
-
 
         // =================================================
         // TOTAL USERS
@@ -598,19 +621,15 @@ const getSummary = async (req, res, next) => {
             FROM users
         `);
 
-
         // =================================================
         // RESPONSE
         // =================================================
 
         return res.status(200).json({
-
             success: true,
 
             data: {
-
                 assignments: {
-
                     total: Number(
                         assignmentStats[0].total || 0
                     ),
@@ -634,40 +653,29 @@ const getSummary = async (req, res, next) => {
                     cancelled: Number(
                         assignmentStats[0].cancelled || 0
                     ),
-
                 },
 
                 customers: {
-
                     total: Number(
                         customerStats[0].total || 0
                     ),
-
                 },
 
                 users: {
-
                     total: Number(
                         userStats[0].total || 0
                     ),
-
                 },
-
             },
-
         });
-
     } catch (error) {
-
         console.error(
             "Dashboard summary error:",
             error
         );
 
         next(error);
-
     }
-
 };
 
 
@@ -676,15 +684,9 @@ const getSummary = async (req, res, next) => {
 // =====================================================
 
 module.exports = {
-
     getOverview,
-
     getRecentShipments,
-
     getActiveAssignments,
-
     getRecentAlerts,
-
     getSummary,
-
 };
