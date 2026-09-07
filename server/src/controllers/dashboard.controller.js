@@ -113,6 +113,50 @@ const getOverview = async (req, res, next) => {
         `);
 
         // =================================================
+// TOP SHIPPING ROUTES
+// =================================================
+
+const [routeStats] = await pool.execute(`
+    SELECT
+        origin_city,
+        destination_city,
+        COUNT(*) AS shipment_count,
+
+        SUM(
+            IF(status = 'delivered', 1, 0)
+        ) AS delivered_count,
+
+        ROUND(
+            (
+                SUM(
+                    IF(status = 'delivered', 1, 0)
+                )
+                /
+                NULLIF(COUNT(*), 0)
+            ) * 100,
+            1
+        ) AS success_rate
+
+    FROM shipments
+
+    WHERE
+        origin_city IS NOT NULL
+        AND origin_city != ''
+        AND destination_city IS NOT NULL
+        AND destination_city != ''
+
+    GROUP BY
+        origin_city,
+        destination_city
+
+    ORDER BY
+        shipment_count DESC,
+        delivered_count DESC
+
+    LIMIT 5
+`);
+
+        // =================================================
         // VEHICLE STATISTICS
         // =================================================
 
@@ -284,6 +328,19 @@ const getOverview = async (req, res, next) => {
                         ),
                     })),
                 },
+
+                // =================================================
+         // TOP ROUTES
+         // =================================================
+
+routes: routeStats.map((route, index) => ({
+    id: `${route.origin_city}-${route.destination_city}-${index}`,
+    from: route.origin_city,
+    to: route.destination_city,
+    shipments: Number(route.shipment_count || 0),
+    delivered: Number(route.delivered_count || 0),
+    successRate: Number(route.success_rate || 0),
+})),
 
                 // =================================================
                 // VEHICLES

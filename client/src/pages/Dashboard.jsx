@@ -9,7 +9,7 @@ import {
     AlertCircle,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Dashboard components
@@ -403,45 +403,75 @@ Operational
     // -----------------------------------------------------
 
     const shipmentStatusData = [
+    {
+        status: "pending",
+        count: Number(shipments.pending) || 0,
+        percentage: 0,
+    },
 
-        {
-            status: "delivered",
-            count:
-                Number(
-                    shipments.delivered
-                ) || 0,
-            percentage: 0,
-        },
+    {
+        status: "assigned",
+        count: Number(shipments.assigned) || 0,
+        percentage: 0,
+    },
 
-        {
-            status: "in_transit",
-            count:
-                Number(
-                    shipments.inTransit
-                ) || 0,
-            percentage: 0,
-        },
+    {
+        status: "picked_up",
+        count: Number(shipments.pickedUp) || 0,
+        percentage: 0,
+    },
 
-        {
-            status: "delayed",
-            count:
-                Number(
-                    shipments.delayed
-                ) || 0,
-            percentage: 0,
-        },
+    {
+        status: "in_transit",
+        count: Number(shipments.inTransit) || 0,
+        percentage: 0,
+    },
 
-        {
-            status: "cancelled",
-            count:
-                Number(
-                    shipments.cancelled
-                ) || 0,
-            percentage: 0,
-        },
+    {
+        status: "out_for_delivery",
+        count: Number(shipments.outForDelivery) || 0,
+        percentage: 0,
+    },
 
-    ];
+    {
+        status: "delivered",
+        count: Number(shipments.delivered) || 0,
+        percentage: 0,
+    },
 
+    {
+        status: "delayed",
+        count: Number(shipments.delayed) || 0,
+        percentage: 0,
+    },
+
+    {
+        status: "cancelled",
+        count: Number(shipments.cancelled) || 0,
+        percentage: 0,
+    },
+];
+
+    const shipmentTrend = React.useMemo(() => {
+    const trend = shipments?.trend || [];
+
+    if (trend.length < 2) {
+        return "0%";
+    }
+
+    const first = Number(trend[0]?.shipments || 0);
+    const last = Number(
+        trend[trend.length - 1]?.shipments || 0
+    );
+
+    if (first === 0) {
+        return last > 0 ? "100%" : "0%";
+    }
+
+    const percentage = ((last - first) / first) * 100;
+
+    return `${percentage >= 0 ? "+" : ""}${percentage.toFixed(1)}%`;
+}, [shipments?.trend]);
 
     // -----------------------------------------------------
     // TOTAL STATUS COUNT
@@ -785,13 +815,11 @@ Operational
 
                 <div className="xl:col-span-2">
 
-                    <ShipmentChart
-                        data={[]}
-                        totalShipments={
-                            shipments.total || 0
-                        }
-                        trend="12.5%"
-                    />
+                   <ShipmentChart
+    data={shipments.trend || []}
+    totalShipments={shipments.total || 0}
+    trend={shipmentTrend}
+/>
 
                 </div>
 
@@ -832,11 +860,17 @@ Operational
 
             <section className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
 
-               <VehicleStatus vehicleData={vehicles} />
+              <VehicleStatus
+    vehicleData={vehicles}
+/>
 
-                <DriverPerformance driverData={drivers.data || drivers.topDrivers || []} />
+<DriverPerformance
+    driverData={drivers.topDrivers || []}
+/>
 
-                <TopRoutes />
+<TopRoutes
+    routeData={dashboard?.routes || []}
+/>
 
             </section>
 
