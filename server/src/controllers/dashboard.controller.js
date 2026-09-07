@@ -1,5 +1,9 @@
 const { pool } = require("../config/db");
 
+const {
+    generateOperationalAlerts,
+} = require("../services/operationalAlert.service"); 
+
 // =====================================================
 // GET DASHBOARD OVERVIEW
 // GET /api/dashboard/overview
@@ -7,6 +11,13 @@ const { pool } = require("../config/db");
 
 const getOverview = async (req, res, next) => {
     try {
+
+        // =================================================
+        // GENERATE OPERATIONAL ALERTS
+        // =================================================
+
+        await generateOperationalAlerts();
+
         // =================================================
         // SHIPMENT STATISTICS
         // =================================================
