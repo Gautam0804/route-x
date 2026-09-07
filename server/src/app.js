@@ -35,15 +35,10 @@ app.use(helmet());
 // =====================================================
 
 const allowedOrigins = [
-    // Local development
     "http://localhost:5173",
     "http://localhost:4173",
-
-    // Production frontend
-    "https://routex-pied.vercel.app",
-
-    // Old frontend URL - keep only if needed
     "https://routex-peach.vercel.app",
+    "https://routex-wheat.vercel.app",
 ];
 
 app.use(
